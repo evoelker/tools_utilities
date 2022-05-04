@@ -7,14 +7,13 @@
 #
 # Script to pull OU's, Group's and User's from an LDAP directory
 #
-# v0.1 : Completed first write and testing
-# v0.2 : Cleaned and optimized LDAP search
-# v0.3 : Added user modification and enablement data set
-# v0.4 : Cleaned up user/cli output
-# v0.5 : Added show_help function
-# v0.6 : Fixed selected option output (line 801)
-## #v0.xx : Update userMode to use randomly generated password
-## #v0.xx : Update to use dynamically generated ldapSearch base DN
+# v0.01 : Completed first write and testing
+# v0.02 : Cleaned and optimized LDAP search
+# v0.03 : Added user modification and enablement data set
+# v0.04 : Cleaned up user/cli output
+# v0.05 : Added show_help function
+# v0.06 : Fixed selected option output (line 801)
+# v0.07 : Update to use dynamically generated ldapSearch base DN
 ## #v0.XX : Add ldap test search to validate user creds
 ##########################################
 
@@ -28,6 +27,7 @@ srcDomain="" # Long name for the source domain
 sdnShort="" # Short name for the source domain
 dstDomain="" # Long name for the destination domain
 ddnShort="" # Short name for the destination domain
+ldapSearchBase="" # LDAP search base
 ldapSearchUser="" # LDAP search user account
 ldapSearchStart="ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub" # LDAP search base command and options
 ouOutFile="" # Set OU output file
@@ -130,6 +130,7 @@ function show_help
      echo -e -n "\t\tSeed: Preps the data sets for import into a new LDAP directory specified with the [-d <Destination Domain>] option.\n\t\t-\n"
      echo -e -n "\t\tBackup: Preps the data set for re-import into the same or import into a 'clone' directory. [-d <Destination Domain>] is ignored.\n\n"
      echo -e -n "\tAll data sets are prepared for import into Windows Active Directory. Standard Windows Active Directory OU's, Group's and users are removed from the data sets\n"
+     # echo -e -n "\t\tStandard Windows Active Directory OU's, Group's and users are removed from the data sets.\n"
 	echo -e -n "\n\tCommand line options can be combined to create custom data sets.\n"
 	echo -e -n "\n"
 	echo -e -n "\t\t-S\t\tSeed Operations Mode.\n"
@@ -142,9 +143,9 @@ function show_help
      echo -e -n "\t\t-E\t\tData needed to enable user accounts will be retrieved and prepared in the selected operations mode.\n"
 	echo -e -n "\t\t-s\t\tFQDN of Source Directory\n"
 	echo -e -n "\t\t-d\t\tFQDN of Destination Directory\n"
-	echo -e -n "\t\t-u\t\tFull Qualified User Name: administrator@poc01.local.net\n"
+	echo -e -n "\t\t-u\t\tFull Qualified User Name: administrator@tailspin.com\n"
 	echo -e -n "\t\t-O\t\tLDAP Dataset Output Directory. Default: ${outDir}\n"
-     echo -e -n "\n\n\t\t\tExample: ldapDataCollect.sh -S -A -s prod.local.net -d poc04.local.net -u evoelker81@prod.local.net\n\n"
+     echo -e -n "\n\n\t\t\tExample: ldapDataCollect.sh -S -A -s tailspin.com -d tailspin.com -u eryk@tailspin.com\n\n"
 }
 
 ### ldif Cleanup
@@ -262,7 +263,7 @@ function ldapOuSearch
      # Log
      echo -e -n "\n\nCollecting OU data from source LDAP directory: ${srcDomain}\nPlease wait..."
      # LDAP search for user accounts
-     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h "${srcDomain}"  -D ${ldapSearchUser} -w ${srcDomainPasswd} "(objectCategory=organizationalUnit)" \
+     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h "${srcDomain}" -b ${ldapSearchBase} -D ${ldapSearchUser} -w ${srcDomainPasswd} "(objectCategory=organizationalUnit)" \
      name \
      ou \
      dn \
@@ -305,7 +306,7 @@ function ldapGroupSearch
      # Log
      echo -e -n "\n\nCollecting Group data from source LDAP directory: ${srcDomain}\nPlease wait..."
      # LDAP search for user accounts
-     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain}  -D ${ldapSearchUser} -w ${srcDomainPasswd} "(objectCategory=group)" \
+     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain} -b ${ldapSearchBase} -D ${ldapSearchUser} -w ${srcDomainPasswd} "(objectCategory=group)" \
      name \
      dn \
      distinguishedName \
@@ -354,7 +355,7 @@ function ldapUserSearch
      # Log
      echo -e -n "\n\nCollecting User data from source LDAP directory: ${srcDomain}\nPlease wait..."
      # LDAP search for user accounts
-     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain} -D ${ldapSearchUser} -w ${srcDomainPasswd} "(&(objectCategory=Person) (objectClass=user))" \
+     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain} -b ${ldapSearchBase} -D ${ldapSearchUser} -w ${srcDomainPasswd} "(&(objectCategory=Person) (objectClass=user))" \
      name \
      dn \
      distinguishedName \
@@ -411,7 +412,7 @@ function ldapGroupMbrSearch
      # Log
      echo -e -n "\n\nCollecting Membership data from source LDAP directory: ${srcDomain}\nPlease wait..."
      # LDAP search for user accounts
-     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain}  -D ${ldapSearchUser} -w ${srcDomainPasswd} "(&(objectCategory=group) (member=*))" \
+     ldapsearch -L -c -E pr=2000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain} -b ${ldapSearchBase} -D ${ldapSearchUser} -w ${srcDomainPasswd} "(&(objectCategory=group) (member=*))" \
      dn \
      member \
      >> ${groupMbrOutFile}
@@ -450,7 +451,7 @@ function ldapUserModSearch
      # Log
      echo -e -n "\n\nCollecting data for user being modified from source LDAP directory: ${srcDomain}\nPlease wait..."
      # LDAP search for user accounts
-     ldapsearch -L -c -E pr=10000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain} -D ${ldapSearchUser} -w ${srcDomainPasswd} "(&(objectCategory=Person) (objectClass=user))" \
+     ldapsearch -L -c -E pr=10000/noprompt -o ldif-wrap=no -x -s sub -h ${srcDomain} -b ${ldapSearchBase} -D ${ldapSearchUser} -w ${srcDomainPasswd} "(&(objectCategory=Person) (objectClass=user))" \
      dn \
      >> ${userModOutFile}
 
@@ -789,6 +790,7 @@ function main
      # Set Variables
      sdnShort=`echo ${srcDomain} | cut -d"." -f 1` # Short name for the source domain
      ddnShort=`echo ${dstDomain} | cut -d"." -f 1` # Short name for the destination domain
+	ldapSearchBase=`echo "dc=${srcDomain}" | sed 's/\./,dc=/g'`
 
      # Verify user imput
      if [[ -z ${opMode} ]]
