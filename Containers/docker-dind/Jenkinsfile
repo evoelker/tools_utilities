@@ -1,0 +1,40 @@
+pipeline {
+    agent {
+        kubernetes {
+            cloud 'home'
+            defaultContainer 'jnlp'
+            inheritFrom 'kube-worker-dind'
+            namespace 'jenkins'
+        }
+    }
+    options { 
+        timestamps ()
+        ansiColor('xterm')
+    }
+    stages {
+        stage('Build Docker Image') {
+            steps {
+                container('dind-build') {
+                    script {
+                        app = docker.build("docker.home/docker-dind", "-f ./docker-dind/Dockerfile .")
+                        app.inside {
+                            sh 'docker --version'
+                        }
+                    }
+                }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                container('dind-build') {
+                    script {
+                        docker.withRegistry('https://docker.home') {
+                            app.push("${BUILD_NUMBER}")
+                            app.push("latest")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
