@@ -1,0 +1,5 @@
+# amd64, arm64, armhf
+os_arch: "arm64"
+docker_version: "5:19.03.8~3-0"
+docker_compose: "1.25.5"
+admin_account: "eryk"

@@ -1,0 +1,8 @@
+---
+# Restart KeepAlived
+- name: Restart KeepAlived
+  become: yes
+  systemd:
+    name: keepalived
+    state: restarted
+    enabled: yes

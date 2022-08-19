@@ -1,0 +1,4 @@
+# This file is maintained by Ansible
+#
+# Docker cluster mount point
+/mnt /etc/auto.cluster

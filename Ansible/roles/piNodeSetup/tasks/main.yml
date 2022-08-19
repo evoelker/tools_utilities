@@ -1,0 +1,284 @@
+---
+################################################
+# Playbook to configure nodes for Docker Swarm
+#
+# Configure for Ubuntu 18.04 LTS ARM 64
+#
+# v0.01 : First write.
+################################################
+
+    # Set IP address - Ubuntu
+    - name: Set IP Address - Ubuntu
+      become: yes
+      template:
+        src: etc_netplan_01-netcfg.yaml
+        dest: /etc/netplan/01-netcfg.yaml
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      when:
+        ansible_distribution == "Ubuntu"
+      tags:
+        - setup
+    
+    - name: Set IP Address - Debian
+      become: yes
+      template:
+        src: etc_dhcpcd.conf
+        dest: /etc/dhcpcd.conf
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      when:
+        ansible_distribution == "Debian"
+      tags:
+        - setup
+
+    # Apply network settings
+    - name: Apply Static IP Address - Ubuntu
+      become: yes
+      shell: "/usr/sbin/netplan apply"
+      args:
+        warn: false
+      when:
+        ansible_distribution == "Ubuntu"
+      tags:
+        - setup
+    
+    - name: Apply Static IP Address - Debian
+      become: yes
+      shell: "/sbin/dhcpcd --reconfigure"
+      args:
+        warn: false
+      when:
+        ansible_distribution == "Debian"
+      tags:
+        - setup
+
+    # Set Hostname
+    - name: Set Hostname
+      become: yes
+      hostname: 
+        name: "{{ inventory_hostname }}"
+      tags:
+        - setup
+
+    # Push Resolved Configs
+    - name: Push Resolved Configs - Ubuntu
+      become: yes
+      template:
+        src: etc_systemd_resolved.conf
+        dest: /etc/systemd/resolved.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        ansible_distribution == "Ubuntu"
+      tags:
+        - setup
+        - update
+
+    - name: Push Resolved Configs - Debian
+      become: yes
+      template:
+        src: etc_resolv.conf
+        dest: /etc/resolv.conf
+        owner: root
+        group: root
+        mode: '0644'
+      when:
+        ansible_distribution == "Debian"
+      tags:
+        - setup
+        - update
+
+    # Restart Resolved Service
+    - name: Restart Resolved Service
+      become: yes
+      service:
+        name: systemd-resolved
+        state: restarted
+      when:
+        ansible_distribution == "Ubuntu"
+      tags:
+        - setup
+        - update
+
+    # Remove un-needed packages
+    - name: Remove Un-Needed Packages
+      become: yes
+      shell: 'apt-get purge -y xserver* lightdm* raspberrypi-ui-mods desktop-*'
+      args:
+        warn: false
+      when:
+        ansible_distribution == "Debian"
+      tags:
+        - setup
+
+    # Install All Updates
+    - name: Update all packages to the latest version
+      become: yes
+      apt:
+        upgrade: dist
+        update_cache: yes
+      tags:
+        - setup
+        - update
+
+    # Install Packages
+    - name: Install Packages
+      become: yes
+      apt:
+        name:
+          - build-essential
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+          - pwgen
+          - htop
+          - screen
+          - net-tools
+          - python3-pip
+          - unzip
+        state: latest
+        install_recommends: no
+        update_cache: yes
+      tags:
+        - setup
+        - update
+
+    # Configure Python3 as default
+    - name: Set Python3 as Default
+      become: yes
+      alternatives:
+        name: pyhton
+        link: /usr/bin/pyhton
+        path: /usr/bin/python3
+        priority: 1
+      tags:
+        - setup
+
+    # Group Setup
+    - name: Group Setup
+      become: yes
+      group:
+        name: "{{ item.name }}"
+        state: "{{ item.state }}"
+      with_items:
+        - { name: 'docker', state: 'present'}
+      tags:
+        - setup
+
+    # Account Setup: <userName>
+    - name: Create '<userName>' account
+      become: yes
+      user:
+        name: <userName>
+        password: <passwordHash>
+        comment: <userName>
+        shell: /bin/bash
+        groups:
+          - sudo
+          - adm
+          - docker
+        append: yes
+        create_home: yes
+        state: present
+      tags:
+        - setup
+        - update
+
+    # Update sudoers
+    - name: Update Sudoers for Passwordless sudo
+      become: yes
+      lineinfile:
+        dest: /etc/sudoers
+        regexp: "{{ item.search }}"
+        line: "{{ item.line }}"
+        state: present
+        validate: 'visudo -cf %s'
+      with_items:
+        - { search: '^<userName>', line: '<userName>    ALL=(ALL:ALL) NOPASSWD:ALL' }
+      tags:
+        - setup
+        - update
+
+    # Add ssh keys
+    - name: Add authorized keys
+      become: yes
+      authorized_key:
+        user: <userName>
+        key: '{{ item }}'
+        state: present
+        exclusive: true
+      with_file:
+        - public_keys/piClusterSshKey.pub
+      tags:
+        - setup
+        - update
+
+    # Push config files
+    - name: Push Cluster Host Config Files
+      become: yes
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+        backup: yes
+      with_items:
+        - { src: 'etc_hosts', dest: '/etc/hosts', owner: 'root', group: 'root', mode: '0644' }
+      tags:
+        - setup
+        - update
+
+    # Disable default User
+    - name: Disable User - Ubuntu
+      become: yes
+      user:
+        name: ubuntu
+        expires: 1
+      when:
+        ansible_distribution == "Ubuntu"
+      tags:
+        - setup
+
+    - name: Disable User - Pi
+      become: yes
+      user:
+        name: pi
+        expires: 1
+      when:
+        ansible_distribution == "Debian"
+      tags:
+        - setup
+
+## Reboot
+
+
+#############################################
+## System Configs
+    # Expand OS Drive
+    # - name: Expand OS Drive & Disable Swap File
+    #   become: yes
+    #   shell: {{ item }}
+    #   with_items:
+    #     - "raspi-config --expand-rootfs &gt;&gt; .ansible/sd-expanded"
+    #     - "swapoff /var/swap"
+    #     - "dphys-swapfile swapoff"
+    #     - "dphys-swapfile uninstall"
+    #     - "systemctl disable dphys-swapfile"
+
+    # Regenerate Host Key
+    # - name: Regenerate Host Keys
+    #   become: yes
+    #   shell: {{ item }}
+    #   with_items:
+    #     - "rm /etc/ssh/ssh_host_*"
+    #     - "dpkg-reconfigure openssh-server"
+    #     - "systemctl restart sshd"

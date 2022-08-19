@@ -1,0 +1,19 @@
+# This file is maintained by Ansible
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    {{ ansible_default_ipv4.interface }}:
+      match:
+        macaddress: {{ ansible_default_ipv4.macaddress }}
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - {{ ansible_default_ipv4.address }}/{{ (ansible_default_ipv4.address + '/' + ansible_default_ipv4.netmask) | ipaddr('prefix') }}
+      gateway4: {{ ansible_default_ipv4.gateway }}
+      nameservers:
+        addresses:
+          - 192.168.0.10
+          - 192.168.0.11
+          - 8.8.8.8
+          - 8.8.4.4

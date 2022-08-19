@@ -1,0 +1,4 @@
+# This file is maintained by Ansible
+#
+# Docker cluster mount point
+cluster -rw,hard,intr,rsize=16384,wsize=16384,async,proto=tcp,time0=5 <PathToNFSShare>

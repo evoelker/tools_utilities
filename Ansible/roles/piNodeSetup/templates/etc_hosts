@@ -1,0 +1,19 @@
+# This file is maintained by Ansible
+127.0.0.1       localhost
+127.0.1.1       {{ ansible_hostname }}
+::1             localhost ip6-localhost ip6-loopback {{ ansible_hostname }}
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+
+# Cluster hosts
+192.168.0.29    pi-master
+192.168.0.30    kube-master
+192.168.0.31    kube-node1
+192.168.0.32    kube-node2
+192.168.0.33    kube-node3
+192.168.0.34    kube-node4
+192.168.0.35    kube-node5
+192.168.0.36    kube-node6
+192.168.0.37    kube-node7
+192.168.0.38    kube-node8
+192.168.0.39    kube-node9

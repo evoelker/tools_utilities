@@ -1,0 +1,51 @@
+---
+# Reboot Ubunut
+- name: Reboot Ubuntu
+  become: yes
+  shell: "/usr/bin/sleep 5 && /usr/sbin/reboot"
+  async: 1
+  poll: 0
+  ignore_errors: true
+  listen:
+    - Reboot
+
+# Wait for host to come on-line
+- name: Verify
+  become: no
+  local_action:
+    module: wait_for
+      host={{ ip_address }}
+      port=22
+      delay=2
+      timeout=180
+  listen:
+    - Reboot
+    - Verify
+
+# Apply netplan
+- name: Apply Netplan
+  become: yes
+  shell: "/usr/sbin/netplan apply"
+  listen:
+    - Apply Netplan
+
+# Disable default User
+- name: Disable User - Ubuntu
+  become: yes
+  user:
+    name: ubuntu
+    expires: 1
+  when:
+    ansible_distribution == "Ubuntu"
+  listen:
+    - Disable User - Ubuntu
+
+- name: Disable User - Pi
+  become: yes
+  user:
+    name: pi
+    expires: 1
+  when:
+    ansible_distribution == "Debian"
+  listen:
+    - Disable User - Pi

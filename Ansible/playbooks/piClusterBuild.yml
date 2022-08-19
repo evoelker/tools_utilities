@@ -1,0 +1,30 @@
+#########################################################################
+# Pico Cluster Build Playbook
+# Eryk Voelker
+# 6/2020
+#
+# Ansible play book for setting up Kubernetes on Raspberry Pi cluster
+#########################################################################
+
+---
+- hosts: all
+
+  roles:
+    - piNodeSetup
+    - piNfsClient
+    - piDockerCE
+    - piKeepAlived
+
+  vars:
+    # ansible_ssh_pass: ubuntu
+    # ansible_become_pass: ubuntu
+    ansible_become_method: sudo
+  environment:
+
+# Config OS
+### Install Docker
+### Install/Configure AutoFS
+### Install HAProxy
+### Install KeepAlived
+# Join docker swarm
+

@@ -1,0 +1,56 @@
+---
+################################################
+# Playbook to configure AutoFS clients
+#
+# Configure for Ubuntu 18.04 LTS ARM 64
+#
+# v0.01 : First write.
+################################################
+
+    # Install AutoFS
+    - name: Update packages and install AutoFS
+      become: yes
+      apt:
+        name: ['nfs-common', 'autofs']
+        state: latest
+        update_cache: yes
+        install_recommends: no
+      tags:
+        - setup
+
+    # Create auto.master.d directory
+    - name: Create auto.master.d directory
+      become: yes
+      file:
+        path: "/etc/auto.master.d/"
+        state: directory
+        mode: "0755"
+      tags:
+        - setup
+
+    # Push configs
+    - name: Configure AutoFS
+      become: yes
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: root
+        group: root
+        mode: 0644
+        backup: no
+      with_items:
+        - { src: 'etc_auto.direct', dest: '/etc/auto.direct' }
+        - { src: 'etc_auto.master.d_direct.autofs', dest: '/etc/auto.master.d/direct.autofs' }
+      tags:
+        - setup
+        - update
+
+    # Restart autoFS
+    - name: Restart AutoFS
+      become: yes
+      service:
+        name: autofs
+        state: restarted
+      tags:
+        - setup
+        - update

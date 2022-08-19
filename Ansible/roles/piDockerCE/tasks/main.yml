@@ -1,0 +1,125 @@
+---
+################################################
+# Playbook to install DockerCE
+#
+# Configure for Ubuntu 18.04 LTS ARM 64
+#
+# v0.01 : First write.
+# v0.02 : Updated configs for docker-compose
+################################################
+
+    # Install requiered packages
+    - name: Update requiered packages
+      become: yes
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+        state: latest
+        install_recommends: no
+        update_cache: yes
+      tags:
+        - setup
+
+    # Install repo key
+    - name: Install Ubuntu Docker repo key
+      become: yes
+      shell: 'curl -fsSL https://download.docker.com/linux/{{ ansible_distribution|lower }}/gpg | apt-key add -'
+      args:
+        warn: false
+      tags:
+        - setup
+
+    # Setup Docker repo
+    - name: Setup Docker repo
+      become: yes
+      shell: 'add-apt-repository "deb [arch={{ os_arch }}] https://download.docker.com/linux/{{ ansible_distribution|lower }} $(lsb_release -cs) stable"'
+      args:
+        warn: false
+      tags:
+        - setup
+
+    # Update packages
+    - name: Update Apt Packages
+      become: yes
+      apt:
+        update_cache: yes
+      tags:
+        - setup
+        - update
+
+    # Un-Hold docker-ce and docker-ce-cli versions
+    - name: Apt un-hold for Docker-CE
+      become: yes
+      shell: 'apt-mark unhold docker-ce docker-ce-cli'
+      args:
+        warn: false
+      ignore_errors: yes
+      tags:
+        - setup
+        - update
+
+    # Install DockerCE
+    - name: Install Docker-CE - Ubuntu
+      become: yes
+      apt:
+        name:
+          - "docker-ce={{ docker_version }}~ubuntu-{{ ansible_distribution_release }}"
+          - "docker-ce-cli={{ docker_version }}~ubuntu-{{ ansible_distribution_release }}"
+        state: present
+        update_cache: no
+      when:
+        - ansible_distribution == "Ubuntu"
+      tags:
+        - setup
+        - update
+
+    - name: Install Docker-CE - Debian
+      become: yes
+      apt:
+        name:
+          - 'docker-ce={{ docker_version }}~debian-{{ ansible_distribution_release }}'
+          - 'docker-ce-cli={{ docker_version }}~debian-{{ ansible_distribution_release }}'
+        state: present
+        update_cache: no
+      when:
+        - ansible_distribution == "Debian"
+      tags:
+        - setup
+        - update
+
+    # Hold docker-ce and docker-ce-cli versions
+    - name: Apt hold for Docker-CE
+      become: yes
+      shell: 'apt-mark hold docker-ce docker-ce-cli'
+      args:
+        warn: false
+      tags:
+        - setup
+        - update
+
+    # Install Docker Compose
+    - name: Install Docker Compose
+      become: yes
+      shell: 'curl -L "https://github.com/docker/compose/releases/download/{{ docker_compose }}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose'
+      args:
+        warn: false
+      tags:
+        - setup
+        - update
+
+    # Add admin account to docker group
+    - name: Add admin account to docker group
+      become: yes
+      user:
+        name: "{{ admin_account }}"
+        groups:
+          - docker
+        append: yes
+      with_items:
+        - "{{ admin_account }}"
+      tags:
+        - setup

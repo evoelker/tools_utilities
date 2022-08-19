@@ -1,0 +1,116 @@
+---
+#####################################
+# Install KeepAlived with Apt (Ubuntu)
+#
+# v0.01 : First write.
+# v0.01 : Updated to use unified template
+#####################################
+
+    # Install Required Packages
+    - name: Install Required Packages
+      become: yes
+      apt:
+        name: ['libssl-dev', 'build-essential']
+        state: latest
+        update_cache: yes
+      tags:
+        - setup
+
+    # Download KeepAlived Source
+    - name: Download KeepAlived Source Code
+      become: yes
+      get_url:
+        url: https://www.keepalived.org/software/keepalived-2.0.20.tar.gz
+        dest: /tmp/keepalived-2.0.20.tar.gz
+        mode: '774'
+        checksum: md5:a5966e8433b60998709c4a922a407bac
+      tags:
+        - setup
+
+    # Extract source files
+    - name: Extract KeepAlived Source Code
+      become: yes
+      unarchive:
+        src: /tmp/keepalived-2.0.20.tar.gz
+        dest: /tmp
+        remote_src: yes
+        list_files: yes
+        keep_newer: yes
+        owner: root
+        group: root
+      tags:
+        - setup
+
+    # Install KeepAlived
+    - name: Install KeepAlived
+      become: yes
+      shell: "{{ item }}"
+      args:
+        chdir: /tmp/keepalived-2.0.20
+        warn: false
+      with_items:
+        - './configure'
+        - 'make'
+        - 'make install'
+      tags:
+        - setup
+
+    - name: Install KeepAlived - Make Install
+      become: yes
+      make:
+        chdir: /tmp/keepalived-2.0.20/
+        target: install
+      tags:
+        - setup
+
+    # Update systemd
+    - name: Add KeepAlived to Systemd
+      become: yes
+      copy:
+        src: /tmp/keepalived-2.0.20/keepalived/keepalived.service
+        dest: /etc/systemd/system/keepalived.service
+        remote_src: yes
+        owner: root
+        group: root
+        mode: '0644'
+      tags:
+        - setup
+
+    - name: Create Service Symbolic Link
+      become: yes
+      file:
+        src: /etc/systemd/system/keepalived.service
+        dest: /etc/systemd/system/multi-user.target.wants/keepalived.service
+        owner: root
+        group: root
+        state: link
+      tags:
+        - setup
+
+    # Create KeepAlived config dir
+    - name: Create /etc/keepalived/ Directory
+      become: yes
+      file:
+        path: /etc/keepalived
+        state: directory
+        owner: root
+        group: root
+        mode: '0655'
+      tags:
+        - setup
+
+    # Push KeepAlived Unified Template
+    - name: Push KeepAlived Unified Template
+      become: yes
+      template:
+        src: etc_keepalived_keepalived.conf
+        dest: /etc/keepalived/keepalived.conf
+        owner: root
+        group: root
+        mode: '0644'
+        backup: yes
+      notify:
+        - Restart KeepAlived
+      tags:
+        - setup
+        - update
